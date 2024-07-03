@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welding Inspection</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        async function setupCamera() {
+            const video = document.getElementById('videoStream');
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({video: true});
+                video.srcObject = stream;
+                await new Promise((resolve) => {
+                    video.onloadedmetadata = () => {
+                        resolve(video.play());
+                    };
+                });
+            } catch (error) {
+                console.error('Error accessing camera:', error);
+            }
+        }
+
+        async function captureAndSendImage() {
+            const video = document.getElementById('videoStream');
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageDataUrl = canvas.toDataURL('image/jpeg');
+
+            await sendImage(imageDataUrl);
+        }
+
+        async function sendImage(imageDataUrl) {
+            try {
+                const response = await fetch('/capture', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({image: imageDataUrl}),
+                });
+
+                const data = await response.json();
+                console.log('Received response:', data);  // Логирование полученных данных
+                if (data.error) {
+                    console.error(data.error);
+                } else {
+                    handleResult(data.result_id, data.result_name, imageDataUrl);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        function handleResult(result_id, result_name, imageDataUrl) {
+            const container = document.querySelector('.container-custom');
+            const resultText = document.getElementById('result');
+            const video = document.getElementById('videoStream');
+            const capturedImage = document.getElementById('capturedImage');
+            const captureButton = document.getElementById('captureButton');
+            const nextButton = document.getElementById('nextButton');
+            const fileInputButton = document.getElementById('fileInputButton');
+
+            video.style.display = 'none';
+            capturedImage.style.display = 'block';
+            capturedImage.src = imageDataUrl;
+            captureButton.style.display = 'none';
+            nextButton.style.display = 'block';
+            fileInputButton.style.display = 'none';
+
+            if (result_id === null) {
+                container.style.backgroundColor = '#E7ECF8';
+                resultText.innerText = 'Поднесите деталь';
+            } else if (result_id === 3) {
+                container.style.backgroundColor = '#3CB371';
+                resultText.innerText = 'Детекций нет';
+            } else {
+                container.style.backgroundColor = 'red';
+                resultText.innerText = `Детекция ${result_name}`;
+            }
+        }
+
+        function nextPhoto() {
+            const video = document.getElementById('videoStream');
+            const capturedImage = document.getElementById('capturedImage');
+            const captureButton = document.getElementById('captureButton');
+            const nextButton = document.getElementById('nextButton');
+            const fileInputButton = document.getElementById('fileInputButton');
+            const container = document.querySelector('.container-custom');
+            const resultText = document.getElementById('result');
+
+            video.style.display = 'block';
+            capturedImage.style.display = 'none';
+            captureButton.style.display = 'block';
+            nextButton.style.display = 'none';
+            fileInputButton.style.display = 'block';
+            container.style.backgroundColor = '#fff';
+            resultText.innerText = 'Поднесите деталь';
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            const reader = new FileReader();
+            reader.onload = async function (e) {
+                const imageDataUrl = e.target.result;
+                await sendImage(imageDataUrl);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        window.onload = async () => {
+            await setupCamera();
+        };
+    </script>
+    <style>
+        .container-custom {
+            background-color: #fff;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 1200px;
+            height: 90vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            transition: background-color 0.5s;
+        }
+
+        .container-title {
+            background-color: #E7ECF8;
+            border-radius: 10px;
+            padding: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+        }
+
+        .header-text {
+            color: #2F93FF;
+            font-size: 24px;
+            margin: 0;
+        }
+
+        .result-text {
+            color: #2F93FF;
+            font-size: 25px;
+        }
+
+        #videoStream, #capturedImage {
+            width: 100%;
+            height: 70%;
+            border: 2px solid #E7ECF8;
+            border-radius: 20px;
+            object-fit: cover;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .body-custom {
+            background-color: #E7ECF8;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: 0;
+        }
+
+        #capturedImage {
+            display: none;
+        }
+
+        #nextButton {
+            display: none;
+        }
+
+        .btn-half {
+            width: 48%;
+        }
+
+        .file-input-button {
+            display: inline-block;
+            padding: 6px 12px;
+            cursor: pointer;
+            border: 2px dashed #007bff;
+            border-radius: 4px;
+            color: #007bff;
+            background-color: transparent;
+            text-align: center;
+            transition: all 0.2s;
+
+        }
+
+        .file-input-button:hover {
+            background-color: #007bff;
+            color: white;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .btn-half, .file-input-button {
+            width: 100%;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+    </style>
+</head>
+<body>
+<div class="body-custom">
+    <div class="container container-custom">
+        <div class="container-title">
+            <div class="header-text">Детекция сварки</div>
+        </div>
+        <video id="videoStream" class="img-fluid rounded" autoplay playsinline></video>
+        <img id="capturedImage" class="img-fluid rounded" alt="Captured Image">
+
+        <div class="container-title">
+            <div id="result" class="result-text">Поднесите деталь</div>
+        </div>
+        <div class="button-container">
+            <button id="nextButton" class="btn btn-info btn-half" onclick="nextPhoto()">Следующее фото</button>
+            <div class="row">
+                <div class="col-lg-6">
+                    <button id="captureButton" class="btn btn-primary btn-half" onclick="captureAndSendImage()">Сделать фото</button>
+                </div>
+                <div class="col-lg-6">
+                    <label class="file-input-button btn-half" id="fileInputButton">
+                        Загрузить фото с устройства
+                        <input type="file" id="fileInput" class="file-input" accept="image/*"
+                               onchange="handleFileSelect(event)">
+                    </label>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

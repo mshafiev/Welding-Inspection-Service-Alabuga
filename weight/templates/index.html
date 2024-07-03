@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Welding Inspection</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+    <script>
+        async function setupCamera() {
+            const video = document.getElementById('videoStream');
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({video: true});
+                video.srcObject = stream;
+                await new Promise((resolve) => {
+                    video.onloadedmetadata = () => {
+                        resolve(video.play());
+                    };
+                });
+            } catch (error) {
+                console.error('Error accessing camera:', error);
+            }
+        }
+
+        async function captureAndSendImage() {
+            const video = document.getElementById('videoStream');
+            const canvas = document.createElement('canvas');
+            const context = canvas.getContext('2d');
+
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const imageDataUrl = canvas.toDataURL('image/jpeg');
+
+            try {
+                const response = await fetch('/capture', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({image: imageDataUrl}),
+                });
+
+                const data = await response.json();
+                console.log(data);
+                if (data.error) {
+                    console.error(data.error);
+                } else {
+                    handleResult(data.result_id, data.result_name);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        function handleResult(result_id, result_name) {
+            const container = document.querySelector('.body-custom');
+            const resultText = document.getElementById('result');
+            console.log(result_id, result_name)
+            if (result_id === null) {
+                container.style.backgroundColor = '#E7ECF8';
+                resultText.innerText = 'Поднесите деталь';
+            } else if(result_id === 3) {
+                container.style.backgroundColor = '#3CB371';
+                resultText.innerText = 'Детекций нет';
+            } else {
+                container.style.backgroundColor = 'red';
+                resultText.innerText = `Детекция ${result_name}`;
+            }
+
+            setTimeout(() => {
+                container.style.backgroundColor = '#E7ECF8';
+                resultText.innerText = 'Поднесите деталь';
+            }, 1500);
+        }
+
+        window.onload = async () => {
+            await setupCamera();
+            setInterval(captureAndSendImage, 2000);
+        };
+    </script>
+    <style>
+
+
+        .container-custom {
+            background-color: #fff;
+            border-radius: 20px;
+            padding: 20px;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            width: 90%;
+            max-width: 1200px;
+            height: 90vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-between;
+            transition: background-color 0.5s;
+        }
+
+        .container-title {
+            background-color: #E7ECF8;
+            border-radius: 10px;
+            padding: 10px 20px;
+            margin: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 90%;
+        }
+
+        .header-text {
+            color: #2F93FF;
+            font-size: 24px;
+            margin: 0;
+        }
+
+        .result-text {
+            color: #2F93FF;
+            font-size: 25px;
+        }
+
+        #videoStream {
+            width: 100%;
+            height: 80%;
+            border: 2px solid #E7ECF8;
+            border-radius: 15px;
+            object-fit: cover;
+            overflow: hidden;
+            margin-bottom: 20px;
+        }
+
+        .body-custom {
+            background-color: #E7ECF8;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+    </style>
+</head>
+<body>
+<div class="body-custom">
+    <div class="container container-custom">
+        <div class="container-title">
+            <div class="header-text">Детекция сварки</div>
+        </div>
+        <video id="videoStream" class="img-fluid rounded" autoplay playsinline></video>
+        <div class="container-title">
+            <div id="result" class="result-text">Детекций нет</div>
+        </div>
+
+    </div>
+</div>
+</body>
+</html>
