@@ -1,6 +1,5 @@
 ### README.md
 
-```markdown
 # Welding Inspection Service
 
 ## Описание
